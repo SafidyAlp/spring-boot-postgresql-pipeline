@@ -2,13 +2,16 @@ pipeline {
     agent any
     
     tools {
-        jdk 'jdk11'
-        maven 'maven3'
+        // Utilisez les noms EXACTS tels que configurés dans Jenkins
+        // Allez dans Manage Jenkins > Global Tool Configuration pour voir les noms exacts
+        jdk 'JDK11'  // Notez la majuscule - vérifiez le nom exact dans Jenkins
+        maven 'M3'   // Notez la majuscule - vérifiez le nom exact dans Jenkins
     }
     
     environment {
-        // Variables pour la base de données - seront configurées dans Jenkins
+        // Variables d'environnement corrigées
         DB_URL = 'jdbc:postgresql://localhost:5432/testdb'
+        // Utilisation correcte de la fonction credentials()
         DB_USERNAME = credentials('postgres-credentials').username
         DB_PASSWORD = credentials('postgres-credentials').password
     }
@@ -40,9 +43,9 @@ pipeline {
                 echo 'Exécution des tests...'
                 // Configuration des variables d'environnement pour les tests
                 bat """
-                set SPRING_DATASOURCE_URL=${DB_URL}
-                set SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
-                set SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+                set SPRING_DATASOURCE_URL=%DB_URL%
+                set SPRING_DATASOURCE_USERNAME=%DB_USERNAME%
+                set SPRING_DATASOURCE_PASSWORD=%DB_PASSWORD%
                 set SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
                 mvn test
                 """
@@ -63,7 +66,7 @@ pipeline {
             post {
                 success {
                     archiveArtifacts 'target/*.jar'
-                    echo "Application packagée avec succès: ${JOB_NAME}-${BUILD_NUMBER}.jar"
+                    echo "Application packagée avec succès"
                 }
             }
         }
