@@ -2,18 +2,16 @@ pipeline {
     agent any
     
     tools {
-        // Utilisez les noms EXACTS tels que configurés dans Jenkins
-        // Allez dans Manage Jenkins > Global Tool Configuration pour voir les noms exacts
-        jdk 'JDK11'  // Notez la majuscule - vérifiez le nom exact dans Jenkins
-        maven 'M3'   // Notez la majuscule - vérifiez le nom exact dans Jenkins
+        // Utilisez le nom exact de votre JDK 22 configuré dans Jenkins
+        jdk 'JDK22'  // Remplacez par le nom exact configuré dans Jenkins
+        maven 'M3'   // Remplacez par le nom exact de Maven dans Jenkins
     }
     
     environment {
-        // Variables d'environnement corrigées
-        DB_URL = 'jdbc:postgresql://localhost:5432/testdb'
-        // Utilisation correcte de la fonction credentials()
-        DB_USERNAME = credentials('postgres-credentials').username
-        DB_PASSWORD = credentials('postgres-credentials').password
+        // Variables d'environnement pour PostgreSQL
+        DB_URL = 'jdbc:postgresql://localhost:5432/MAMI'
+        DB_USERNAME = credentials('postgres-credentials')?.username
+        DB_PASSWORD = credentials('postgres-credentials')?.password
     }
     
     stages {
@@ -26,22 +24,21 @@ pipeline {
                 )
                 script {
                     echo "Code récupéré depuis GitHub avec succès"
-                    bat 'dir' // Lister les fichiers pour vérification
+                    bat 'dir && java -version && mvn --version'
                 }
             }
         }
         
         stage('Build Application') {
             steps {
-                echo 'Construction de l application Spring Boot...'
+                echo 'Construction de l application Spring Boot avec JDK 22...'
                 bat 'mvn clean compile'
             }
         }
         
         stage('Run Tests') {
             steps {
-                echo 'Exécution des tests...'
-                // Configuration des variables d'environnement pour les tests
+                echo 'Exécution des tests avec PostgreSQL...'
                 bat """
                 set SPRING_DATASOURCE_URL=%DB_URL%
                 set SPRING_DATASOURCE_USERNAME=%DB_USERNAME%
@@ -66,7 +63,7 @@ pipeline {
             post {
                 success {
                     archiveArtifacts 'target/*.jar'
-                    echo "Application packagée avec succès"
+                    echo "Application packagée avec succès avec JDK 22"
                 }
             }
         }
@@ -75,10 +72,10 @@ pipeline {
     post {
         always {
             echo "Pipeline ${currentBuild.fullDisplayName} terminé"
-            cleanWs() // Nettoyage de l'espace de travail
+            cleanWs() 
         }
         success {
-            echo '✅ Pipeline exécuté avec succès!'
+            echo '✅ Pipeline exécuté avec succès avec JDK 22!'
         }
         failure {
             echo '❌ Échec du pipeline. Vérifiez les logs.'
