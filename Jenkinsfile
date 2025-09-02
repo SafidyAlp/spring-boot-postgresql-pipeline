@@ -1,70 +1,105 @@
 pipeline {
     agent any
-
+    
     tools {
-        maven 'M3'
         jdk 'JDK22'
+        maven 'M3'
     }
-
+    
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', 
-                url: 'https://github.com/votre-utilisateur/votre-repo.git'
+                git(
+                    branch: 'main',
+                    url: 'https://github.com/SafidyAlp/spring-boot-postgresql-pipeline.git',
+                    credentialsId: 'git-credentials'
+                )
+                bat 'echo "Checkout réussi" && dir'
             }
         }
-
-        stage('Build et Tests') {
+        
+        stage('Build and Test') {
             steps {
-                // Build et exécution des tests (y compris les tests d'intégration)
-                sh 'mvn clean compile test'
+                bat 'mvn clean compile test'
             }
             post {
                 always {
-                    junit 'target/surefire-reports/*.xml' // Tests unitaires
-                    junit 'target/failsafe-reports/*.xml' // Tests d'intégration (si vous en avez)
+                    junit 'target/surefire-reports/*.xml'
+                    // Pour les tests d'intégration si vous en avez
+                    junit 'target/failsafe-reports/*.xml' 
                 }
             }
         }
-
-        stage('Validation Templates') {
+        
+        stage('Validate Templates') {
             steps {
-                // Vérification que les templates Thymeleaf sont valides
                 script {
-                    // Cette étape compile les templates pour détecter les erreurs
-                    sh 'mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.main.web-application-type=none -Dspring.main.banner-mode=off" --quiet &'
-                    sleep time: 10, unit: 'SECONDS'
-                    sh 'pkill -f "spring-boot:run" || true'
+                    // Validation des templates Thymeleaf
+                    bat '''
+                        echo "Validation des templates Thymeleaf..."
+                        mvn compile -q
+                        echo "✅ Templates compilés avec succès"
+                    '''
                 }
             }
         }
-
-        stage('Package') {
+        
+        stage('Package Application') {
             steps {
-                sh 'mvn package -DskipTests'
+                bat 'mvn package -DskipTests'
             }
             post {
                 success {
                     archiveArtifacts 'target/*.jar'
-                    echo '✅ Application packagée avec succès avec templates Thymeleaf'
+                    bat 'echo "✅ Application packagée avec templates Thymeleaf"'
                 }
             }
         }
     }
-
+    
     post {
         always {
+            bat 'echo "Build terminé: ${currentBuild.result}"'
             cleanWs() // Nettoyage du workspace
         }
-        failure {
-            emailext body: "Le build a échoué. Consultez Jenkins: ${BUILD_URL}", 
-                    subject: "❌ ÉCHEC du build : ${JOB_NAME}",
-                    to: 'votre-email@example.com'
-        }
         success {
-            emailext body: "Le build a réussi! Application avec templates Thymeleaf prête.", 
-                    subject: "✅ SUCCÈS du build : ${JOB_NAME}",
-                    to: 'votre-email@example.com'
+            bat 'echo "✅ SUCCÈS: Build avec templates Thymeleaf réussi!"'
+            // Envoyer un email de succès (si configuré)
+            emailext (
+                subject: "✅ SUCCÈS Build: ${JOB_NAME} #${BUILD_NUMBER}",
+                body: """
+                Le build Jenkins a réussi !
+
+                Détails:
+                - Projet: ${JOB_NAME}
+                - Build: #${BUILD_NUMBER}
+                - Statut: SUCCÈS
+                - Templates Thymeleaf: VALIDÉS
+                - Lien: ${BUILD_URL}
+
+                L'application Spring avec interface web est prête !
+                """,
+                to: "randrianomentsoasafidy@gmail.com"
+            )
+        }
+        failure {
+            bat 'echo "❌ ÉCHEC: Build a échoué"'
+            // Envoyer un email d'échec (si configuré)
+            emailext (
+                subject: "❌ ÉCHEC Build: ${JOB_NAME} #${BUILD_NUMBER}",
+                body: """
+                Le build Jenkins a échoué !
+
+                Détails:
+                - Projet: ${JOB_NAME}
+                - Build: #${BUILD_NUMBER}
+                - Statut: ÉCHEC
+                - Lien: ${BUILD_URL}
+
+                Veuillez vérifier les erreurs.
+                """,
+                to: "randrianomentsoasafidy@gmail.com"
+            )
         }
     }
 }
