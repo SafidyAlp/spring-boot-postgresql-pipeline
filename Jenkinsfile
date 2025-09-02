@@ -21,12 +21,15 @@ pipeline {
         stage('Build and Test') {
             steps {
                 bat 'mvn clean compile test'
+                // Diagnostic
+                bat 'dir target /s || echo "Aucun répertoire target"'
+                bat 'dir target/surefire-reports /s 2>nul || echo "Aucun répertoire surefire-reports"'
             }
             post {
                 always {
-                    junit 'target/surefire-reports/*.xml'
-                    // Pour les tests d'intégration si vous en avez
-                    junit 'target/failsafe-reports/*.xml' 
+                    // Essayez différents patterns
+                    junit '**/surefire-reports/*.xml'
+                    junit '**/target/surefire-reports/TEST-*.xml'
                 }
             }
         }
@@ -34,7 +37,6 @@ pipeline {
         stage('Validate Templates') {
             steps {
                 script {
-                    // Validation des templates Thymeleaf
                     bat '''
                         echo "Validation des templates Thymeleaf..."
                         mvn compile -q
@@ -60,43 +62,34 @@ pipeline {
     post {
         always {
             bat 'echo "Build terminé: ${currentBuild.result}"'
-            cleanWs() // Nettoyage du workspace
+            cleanWs()
         }
         success {
             bat 'echo "✅ SUCCÈS: Build avec templates Thymeleaf réussi!"'
-            // Envoyer un email de succès (si configuré)
             emailext (
                 subject: "✅ SUCCÈS Build: ${JOB_NAME} #${BUILD_NUMBER}",
                 body: """
                 Le build Jenkins a réussi !
-
                 Détails:
                 - Projet: ${JOB_NAME}
                 - Build: #${BUILD_NUMBER}
                 - Statut: SUCCÈS
                 - Templates Thymeleaf: VALIDÉS
                 - Lien: ${BUILD_URL}
-
-                L'application Spring avec interface web est prête !
                 """,
                 to: "randrianomentsoasafidy@gmail.com"
             )
         }
         failure {
             bat 'echo "❌ ÉCHEC: Build a échoué"'
-            // Envoyer un email d'échec (si configuré)
             emailext (
                 subject: "❌ ÉCHEC Build: ${JOB_NAME} #${BUILD_NUMBER}",
                 body: """
                 Le build Jenkins a échoué !
-
                 Détails:
                 - Projet: ${JOB_NAME}
                 - Build: #${BUILD_NUMBER}
-                - Statut: ÉCHEC
                 - Lien: ${BUILD_URL}
-
-                Veuillez vérifier les erreurs.
                 """,
                 to: "randrianomentsoasafidy@gmail.com"
             )

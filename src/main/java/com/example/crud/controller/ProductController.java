@@ -3,72 +3,64 @@ package com.example.crud.controller;
 import com.example.crud.model.Product;
 import com.example.crud.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
 
-@RestController
-@RequestMapping("/api/products")
+@Controller
+@RequestMapping("/products")
 public class ProductController {
     
     @Autowired
     private ProductService productService;
     
-    // GET ALL
+    // PAGE D'ACCUEIL - Liste des produits
     @GetMapping
-    public List<Product> getAllProducts() {
-        return productService.getAllProducts();
+    public String getAllProducts(Model model) {
+        List<Product> products = productService.getAllProducts();
+        model.addAttribute("products", products);
+        model.addAttribute("product", new Product()); // Pour le formulaire
+        return "products";
     }
     
-    // GET BY ID
-    @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
-        Optional<Product> product = productService.getProductById(id);
-        return product.map(ResponseEntity::ok)
-                     .orElse(ResponseEntity.notFound().build());
-    }
-    
-    // CREATE
+    // CREATE (POST)
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
-        try {
-            Product newProduct = productService.createProduct(product);
-            return new ResponseEntity<>(newProduct, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public String createProduct(@ModelAttribute Product product) {
+        productService.createProduct(product);
+        return "redirect:/products";
     }
     
-    // UPDATE
-    @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product product) {
-        Product updatedProduct = productService.updateProduct(id, product);
-        if (updatedProduct != null) {
-            return ResponseEntity.ok(updatedProduct);
-        }
-        return ResponseEntity.notFound().build();
+    // UPDATE (GET - Formulaire d'édition)
+    @GetMapping("/edit/{id}")
+    public String editProductForm(@PathVariable Long id, Model model) {
+        Optional<Product> product = productService.getProductById(id);
+        product.ifPresent(value -> model.addAttribute("product", value));
+        return "edit-product";
+    }
+    
+    // UPDATE (POST)
+    @PostMapping("/update/{id}")
+    public String updateProduct(@PathVariable Long id, @ModelAttribute Product product) {
+        productService.updateProduct(id, product);
+        return "redirect:/products";
     }
     
     // DELETE
-    @DeleteMapping("/{id}")
-    public ResponseEntity<HttpStatus> deleteProduct(@PathVariable Long id) {
-        try {
-            if (productService.deleteProduct(id)) {
-                return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-            } else {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            }
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    @GetMapping("/delete/{id}")
+    public String deleteProduct(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return "redirect:/products";
     }
     
     // SEARCH
     @GetMapping("/search")
-    public List<Product> searchProducts(@RequestParam String name) {
-        return productService.searchProducts(name);
+    public String searchProducts(@RequestParam String name, Model model) {
+        List<Product> products = productService.searchProducts(name);
+        model.addAttribute("products", products);
+        model.addAttribute("searchTerm", name);
+        return "products";
     }
 }
