@@ -2,75 +2,108 @@ package com.example.crud.controller;
 
 import com.example.crud.model.Product;
 import com.example.crud.service.ProductService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
+
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
 import java.util.Optional;
 
-import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ProductController.class)
-public class ProductControllerTest {
-    
+class ProductControllerTest {
+
     @Autowired
     private MockMvc mockMvc;
-    
+
     @MockBean
     private ProductService productService;
-    
-    @Autowired
-    private ObjectMapper objectMapper;
-    
-    @Test
-    public void testGetAllProducts() throws Exception {
-        Product product1 = new Product("Laptop", "High performance laptop", 999.99);
-        Product product2 = new Product("Smartphone", "Latest smartphone", 699.99);
-        
-        Mockito.when(productService.getAllProducts()).thenReturn(Arrays.asList(product1, product2));
-        
-        mockMvc.perform(get("/api/products"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].name", is("Laptop")))
-                .andExpect(jsonPath("$[1].name", is("Smartphone")));
+
+    private Product product1;
+    private Product product2;
+
+    @BeforeEach
+    void setUp() {
+        product1 = new Product("Laptop", "Gaming laptop", 1200.0);
+        product1.setId(1L);
+
+        product2 = new Product("Phone", "Smartphone", 800.0);
+        product2.setId(2L);
     }
-    
+
     @Test
-    public void testGetProductById() throws Exception {
-        Product product = new Product("Laptop", "High performance laptop", 999.99);
-        product.setId(1L);
-        
-        Mockito.when(productService.getProductById(1L)).thenReturn(Optional.of(product));
-        
-        mockMvc.perform(get("/api/products/1"))
+    void testGetAllProducts() throws Exception {
+        Mockito.when(productService.getAllProducts())
+                .thenReturn(Arrays.asList(product1, product2));
+
+        mockMvc.perform(get("/products"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", is(1)))
-                .andExpect(jsonPath("$.name", is("Laptop")))
-                .andExpect(jsonPath("$.price", is(999.99)));
+                .andExpect(view().name("products"))
+                .andExpect(model().attributeExists("products"))
+                .andExpect(model().attributeExists("product"));
     }
-    
+
     @Test
-    public void testCreateProduct() throws Exception {
-        Product product = new Product("Tablet", "Portable tablet", 299.99);
-        Product savedProduct = new Product("Tablet", "Portable tablet", 299.99);
-        savedProduct.setId(1L);
-        
-        Mockito.when(productService.createProduct(Mockito.any(Product.class))).thenReturn(savedProduct);
-        
-        mockMvc.perform(post("/api/products")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(product)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id", is(1)))
-                .andExpect(jsonPath("$.name", is("Tablet")));
+    void testCreateProduct() throws Exception {
+        Mockito.when(productService.createProduct(any(Product.class))).thenReturn(product1);
+
+        mockMvc.perform(post("/products")
+                        .param("name", "Laptop")
+                        .param("description", "Gaming laptop")
+                        .param("price", "1200.0"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/products"));
+    }
+
+    @Test
+    void testEditProductForm() throws Exception {
+        Mockito.when(productService.getProductById(1L)).thenReturn(Optional.of(product1));
+
+        mockMvc.perform(get("/products/edit/1"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("edit-product"))
+                .andExpect(model().attributeExists("product"));
+    }
+
+    @Test
+    void testUpdateProduct() throws Exception {
+        Mockito.when(productService.updateProduct(eq(1L), any(Product.class))).thenReturn(product1);
+
+        mockMvc.perform(post("/products/update/1")
+                        .param("name", "Updated Laptop")
+                        .param("description", "New version")
+                        .param("price", "1500.0"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/products"));
+    }
+
+    @Test
+    void testDeleteProduct() throws Exception {
+        mockMvc.perform(get("/products/delete/1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/products"));
+    }
+
+    @Test
+    void testSearchProducts() throws Exception {
+        Mockito.when(productService.searchProducts("Laptop"))
+                .thenReturn(Arrays.asList(product1));
+
+        mockMvc.perform(get("/products/search")
+                        .param("name", "Laptop"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("products"))
+                .andExpect(model().attributeExists("products"))
+                .andExpect(model().attribute("searchTerm", "Laptop"));
     }
 }
