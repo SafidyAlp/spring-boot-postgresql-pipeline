@@ -23,13 +23,11 @@ pipeline {
                 bat 'mvn clean compile test'
                 // Diagnostic
                 bat 'dir target /s || echo "Aucun répertoire target"'
-                bat 'dir target/surefire-reports /s 2>nul || echo "Aucun répertoire surefire-reports"'
+                bat 'dir target\\surefire-reports /s 2>nul || echo "Aucun répertoire surefire-reports"'
             }
             post {
                 always {
-                    // Essayez différents patterns
-                    junit '**/surefire-reports/*.xml'
-                    junit '**/target/surefire-reports/TEST-*.xml'
+                    junit 'target/surefire-reports/*.xml'
                 }
             }
         }
